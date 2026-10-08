@@ -1,0 +1,977 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live AI Technical Interview - {{ candidate_name }}</title>
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  <style>
+    body {
+      background-color: #0b0f19;
+      color: #f8fafc;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    /* Video Meeting Room Container */
+    .meet-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* Top Meeting Header */
+    .meet-header {
+      padding: 0.75rem 1.5rem;
+      background: #111827;
+      border-bottom: 1px solid #1f2937;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 20;
+    }
+
+    /* Floating Presence Warning Banner */
+    #presenceWarningBanner {
+      position: fixed;
+      top: 75px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999;
+      display: none;
+      padding: 0.65rem 1.5rem;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 0.92rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid transparent;
+      animation: bannerSlide 0.3s ease;
+    }
+
+    @keyframes bannerSlide {
+      from { opacity: 0; transform: translate(-50%, -15px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
+
+    /* Two-Tile Video Call Grid */
+    .meet-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      padding: 1.25rem;
+      background: #030712;
+      align-items: stretch;
+      position: relative;
+    }
+
+    @media (max-width: 900px) {
+      .meet-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+      }
+    }
+
+    .video-tile {
+      background: #111827;
+      border: 2px solid #1f2937;
+      border-radius: 20px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .video-tile.candidate-speaking {
+      border-color: #10b981 !important;
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.4) !important;
+    }
+
+    .video-tile.ai-speaking {
+      border-color: #38bdf8 !important;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.4) !important;
+    }
+
+    /* Candidate Mirrored Live Webcam */
+    #liveWebcam {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* Video Tile Overlays */
+    .tile-tag {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      z-index: 5;
+    }
+
+    .tile-status {
+      position: absolute;
+      bottom: 1rem;
+      left: 1rem;
+      right: 1rem;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 0.85rem 1.25rem;
+      border-radius: 14px;
+      z-index: 5;
+    }
+
+    /* Meeting Controls Bar */
+    .meet-controls {
+      background: #111827;
+      border-top: 1px solid #1f2937;
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1.25rem;
+      z-index: 20;
+    }
+
+    .meet-btn {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: #1f2937;
+      color: #ffffff;
+    }
+
+    .meet-btn:hover {
+      background: #374151;
+      transform: scale(1.06);
+    }
+
+    .meet-btn.danger {
+      background: #dc2626;
+    }
+
+    .meet-btn.danger:hover {
+      background: #b91c1c;
+    }
+
+    /* Animated Avatar Pulse */
+    .ai-face-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -55%);
+      text-align: center;
+      z-index: 2;
+    }
+
+    .ai-face {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 4.5rem;
+      box-shadow: 0 0 40px rgba(59, 130, 246, 0.4);
+      margin: 0 auto;
+      transition: transform 0.2s ease;
+    }
+
+    .ai-speaking .ai-face {
+      animation: pulse-avatar 1.2s infinite ease-in-out;
+    }
+
+    /* Subtitles / Speech Ticker */
+    .subtitle-text {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: #e2e8f0;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+
+    /* State Pills */
+    .state-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .state-listening { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid #3b82f6; }
+    .state-speaking { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+    .state-thinking { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid #a855f7; }
+    .state-ai-speaking { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #38bdf8; }
+    .state-your-turn { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; }
+
+    /* Score Pop-up HUD */
+    .score-hud {
+      position: absolute;
+      top: 1.25rem;
+      right: 1.25rem;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid #4f46e5;
+      padding: 0.75rem 1.25rem;
+      border-radius: 12px;
+      z-index: 10;
+      display: none;
+      box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Pre-Call Lobby Modal */
+    #lobbyModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(3, 7, 18, 0.96);
+      backdrop-filter: blur(15px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating Presence Warning Banner -->
+  <div id="presenceWarningBanner"></div>
+
+  <!-- Pre-Call Camera & Voice Lobby Modal -->
+  <div id="lobbyModal">
+    <div style="background:#111827; border:1px solid #374151; border-radius:24px; padding:2.5rem; max-width:560px; width:90%; text-align:center; box-shadow:0 25px 50px -12px rgba(0,0,0,0.7);">
+      <div style="width:70px; height:70px; background:linear-gradient(135deg, #4f46e5, #06b6d4); border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:2.2rem; margin:0 auto 1.25rem; box-shadow:0 8px 25px rgba(79,70,229,0.4);">
+        📹
+      </div>
+      
+      <h2 style="font-size:1.8rem; font-weight:800; color:#f8fafc; margin-bottom:0.5rem;">
+        Live AI Technical Interview Call
+      </h2>
+      <p style="color:#94a3b8; font-size:0.95rem; line-height:1.6; margin-bottom:1.5rem;">
+        Candidate: <strong style="color:#e2e8f0;">{{ candidate_name }}</strong> &bull; Track: <strong style="color:#38bdf8;">{{ domain_display }}</strong> ({{ difficulty|title }})<br>
+        This is an interactive technical interview. The AI acts like an actual human panelist — actively listening, asking follow-ups, correcting inaccuracies, and probing deeper.
+      </p>
+
+      <div style="background:#1f2937; padding:1.1rem; border-radius:14px; margin-bottom:1.75rem; text-align:left; font-size:0.86rem; color:#cbd5e1; line-height:1.6;">
+        <div style="font-weight:700; color:#10b981; margin-bottom:0.4rem;">🎙️ Natural Conversational Flow:</div>
+        &bull; <strong>Voice Only:</strong> No typing needed. Speak directly into your microphone.<br>
+        &bull; <strong>Active Dialogue:</strong> The AI will ask follow-ups based on what you actually say.<br>
+        &bull; <strong>Thinking Time:</strong> Pauses while thinking are expected — take your time to reason.<br>
+        &bull; <strong>Camera Presence:</strong> Basic attention monitoring keeps you prepared for placement drives.
+      </div>
+
+      <button onclick="startLiveInterviewCall()" class="btn btn-primary" style="width:100%; padding:0.95rem; font-size:1.15rem; font-weight:800; border-radius:14px;">
+        🚀 Join Video Call &amp; Begin Interview
+      </button>
+
+      <div style="margin-top:1rem;">
+        <a href="{% url 'interviews:landing' %}" style="color:#64748b; font-size:0.85rem; text-decoration:none;">
+          &larr; Return to Home
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Video Meeting Shell -->
+  <div class="meet-container">
+    
+    <!-- Meeting Top Bar -->
+    <header class="meet-header">
+      <div style="display:flex; align-items:center; gap:0.75rem;">
+        <span style="font-size:1.4rem;">🎙️</span>
+        <div>
+          <div style="font-weight:800; font-size:1rem; color:#f8fafc;">
+            Technical Interview Panel
+          </div>
+          <div style="font-size:0.78rem; color:#94a3b8;">
+            Topic <span id="hudRoundNum">1</span> of {{ rounds }} &bull; Exchange <span id="hudTurnNum">1/2</span> &bull; {{ domain_display }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Live State Indicator & Timer -->
+      <div style="display:flex; align-items:center; gap:1.25rem;">
+        
+        <!-- Conversational State Badge -->
+        <div id="liveStateBadge" class="state-pill state-thinking">
+          🧠 AI is thinking...
+        </div>
+
+        <div style="background:#1f2937; padding:0.35rem 0.85rem; border-radius:8px; font-weight:800; font-size:0.95rem; color:#f1f5f9; display:flex; align-items:center; gap:0.35rem;">
+          ⏱️ <span id="callTimer">02:00</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main 2-Tile Video Stage -->
+    <div class="meet-grid">
+      
+      <!-- Tile 1: AI Interviewer Video Feed -->
+      <div id="aiTile" class="video-tile">
+        <div class="tile-tag">
+          <span style="color:#38bdf8;">🤖</span>
+          <span>Technical Interviewer (AI Panelist)</span>
+        </div>
+
+        <!-- Center Animated Avatar -->
+        <div class="ai-face-container">
+          <div id="aiAvatarIcon" class="ai-face">
+            🤖
+          </div>
+          <div class="audio-waves" id="aiAudioWaves" style="margin-top:1rem; height:28px;">
+            <div class="audio-bar" style="background:#38bdf8; width:5px;"></div>
+            <div class="audio-bar" style="background:#38bdf8; width:5px;"></div>
+            <div class="audio-bar" style="background:#38bdf8; width:5px;"></div>
+            <div class="audio-bar" style="background:#38bdf8; width:5px;"></div>
+            <div class="audio-bar" style="background:#38bdf8; width:5px;"></div>
+          </div>
+        </div>
+
+        <!-- Real-Time Evaluation HUD Score Popup -->
+        <div id="scoreHud" class="score-hud">
+          <div style="font-size:0.75rem; font-weight:700; color:#818cf8; text-transform:uppercase;">Topic Assessment</div>
+          <div style="display:flex; align-items:baseline; gap:0.4rem; margin:0.2rem 0;">
+            <span id="hudScore" style="font-size:1.6rem; font-weight:800; color:#10b981;">88</span>
+            <span style="font-size:0.8rem; color:#94a3b8;">/ 100</span>
+            <span id="hudGrade" class="badge" style="background:#4f46e5; color:#fff; font-size:0.7rem; margin-left:0.3rem;">A</span>
+          </div>
+          <div id="hudVerdict" style="font-size:0.78rem; color:#cbd5e1; max-width:220px; line-height:1.3;">
+            Solid technical foundation.
+          </div>
+        </div>
+
+        <!-- Bottom Subtitle Card: Interviewer Speech Prompt -->
+        <div class="tile-status">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+            <span id="aiStatusBadge" class="badge" style="background:#1e293b; color:#38bdf8; font-size:0.72rem;">
+              🔊 Interviewer Speaking
+            </span>
+            <button onclick="replayCurrentQuestionSpeech()" style="background:transparent; border:none; color:#94a3b8; font-size:0.8rem; cursor:pointer; font-weight:600;">
+              🔁 Replay Question
+            </button>
+          </div>
+          <div id="interviewerPromptText" class="subtitle-text" style="font-weight:600; color:#ffffff;">
+            "Connecting with interviewer... Please stand by."
+          </div>
+        </div>
+      </div>
+
+      <!-- Tile 2: Candidate Live HD Webcam & Voice Subtitles -->
+      <div id="candidateTile" class="video-tile">
+        
+        <!-- Live Camera Stream -->
+        <video id="liveWebcam" autoplay playsinline muted></video>
+
+        <!-- Fallback Placeholder if camera blocked -->
+        <div id="camFallback" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; color:#64748b; z-index:1;">
+          <div style="font-size:4rem;">👨‍💻</div>
+          <div style="font-weight:700; font-size:1.1rem; color:#94a3b8; margin-top:0.5rem;">{{ candidate_name }}</div>
+          <div style="font-size:0.82rem; color:#64748b;">Audio Voice Active &bull; Camera Optional</div>
+        </div>
+
+        <div class="tile-tag">
+          <span style="color:#10b981;">●</span>
+          <span>{{ candidate_name }} (Candidate)</span>
+        </div>
+
+        <!-- Bottom Subtitle Card: Candidate Voice Live Transcript -->
+        <div class="tile-status">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+            <span id="candidateMicBadge" class="badge" style="background:#1e293b; color:#94a3b8; font-size:0.72rem;">
+              ⏳ Waiting for question...
+            </span>
+            <span id="candidateWordCount" style="font-size:0.75rem; color:#94a3b8; font-weight:700;">
+              Words: 0
+            </span>
+          </div>
+
+          <!-- Real-Time Voice Speech Transcript Subtitles -->
+          <div id="candidateTranscriptSubtitles" class="subtitle-text" style="font-style:italic; color:#38bdf8; min-height:45px;">
+            "Your spoken answer will appear here in real time as you speak..."
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Bottom Meeting Controls Bar -->
+    <footer class="meet-controls">
+      
+      <!-- Mic Toggle -->
+      <button id="toggleMicBtn" onclick="toggleCandidateMic()" class="meet-btn" title="Mute/Unmute Voice Microphone">
+        🎙️
+      </button>
+
+      <!-- WebCam Toggle -->
+      <button id="toggleCamBtn" onclick="toggleCandidateCamera()" class="meet-btn" title="Turn Camera On/Off">
+        📷
+      </button>
+
+      <!-- Done Speaking / Submit Turn CTA -->
+      <button id="doneSpeakingBtn" onclick="finishCandidateTurn()" class="btn" style="background:linear-gradient(135deg, #4f46e5, #06b6d4); color:#fff; font-weight:800; font-size:0.95rem; border-radius:9999px; padding:0.65rem 1.4rem; box-shadow:0 0 20px rgba(79,70,229,0.5);">
+        ✋ I'm Done Speaking &rarr;
+      </button>
+
+      <!-- End Call Button -->
+      <button onclick="endInterviewCall()" class="meet-btn danger" title="End Placement Call Early">
+        📞
+      </button>
+
+    </footer>
+
+  </div>
+
+  <!-- Hidden metadata -->
+  <input type="hidden" id="sessionId" value="{{ session.id }}">
+  <input type="hidden" id="sessionDomain" value="{{ domain }}">
+  <input type="hidden" id="sessionDiff" value="{{ difficulty }}">
+  <input type="hidden" id="totalRoundsTarget" value="{{ rounds }}">
+
+  <script src="{% static 'js/speech_interviewer.js' %}"></script>
+  <script src="{% static 'js/presence_monitor.js' %}"></script>
+  <script>
+    let currentTopicIndex = 1;
+    let turnIndex = 1; // 1 = initial answer, 2 = follow-up/challenge
+    const totalRounds = parseInt(document.getElementById('totalRoundsTarget').value || 3);
+    let currentQuestion = null;
+    let answeredIds = [];
+    let conversationHistory = [];
+
+    let webcamStream = null;
+    let audioController = null;
+    let presenceMonitor = null;
+    let roundTimerSeconds = 120;
+    let roundTimerInterval = null;
+
+    let candidateVoiceText = '';
+    let isCandidateSpeaking = false;
+    let silenceSeconds = 0;
+    let thinkingPauseInterval = null;
+    let realtimeCheckTimer = null;
+    let hasPromptedThinkingPause = false;
+    let hasPromptedRepeatQuestion = false;
+
+    /* Initialize on Modal Click */
+    function startLiveInterviewCall() {
+      document.getElementById('lobbyModal').style.display = 'none';
+
+      // 1. Initialize Audio Controller
+      audioController = new InterviewAudioController({
+        avatarElement: document.getElementById('aiAvatarIcon'),
+        waveElement: document.getElementById('aiAudioWaves'),
+        answerInput: null,
+      });
+
+      // 2. Start Live WebCam & Presence Monitor
+      initWebcamAndPresence();
+
+      // 3. Start Question Flow
+      loadAndAskNextTopic();
+    }
+
+    /* Webcam and Presence Monitor Initialization */
+    function initWebcamAndPresence() {
+      const video = document.getElementById('liveWebcam');
+      const fallback = document.getElementById('camFallback');
+      const sessionId = document.getElementById('sessionId').value;
+
+      navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: true })
+        .then(stream => {
+          webcamStream = stream;
+          video.srcObject = stream;
+          fallback.style.display = 'none';
+
+          // Start Presence Monitoring
+          presenceMonitor = new InterviewPresenceMonitor({
+            videoElement: video,
+            sessionId: sessionId,
+            warningBannerElement: document.getElementById('presenceWarningBanner')
+          });
+          presenceMonitor.start();
+        })
+        .catch(err => {
+          console.warn("Camera permission not granted:", err);
+          fallback.style.display = 'block';
+        });
+    }
+
+    function toggleCandidateCamera() {
+      const video = document.getElementById('liveWebcam');
+      const fallback = document.getElementById('camFallback');
+      const btn = document.getElementById('toggleCamBtn');
+
+      if (webcamStream) {
+        const videoTrack = webcamStream.getVideoTracks()[0];
+        if (videoTrack) {
+          videoTrack.enabled = !videoTrack.enabled;
+          btn.style.opacity = videoTrack.enabled ? '1' : '0.5';
+          fallback.style.display = videoTrack.enabled ? 'none' : 'block';
+        }
+      }
+    }
+
+    function toggleCandidateMic() {
+      const btn = document.getElementById('toggleMicBtn');
+      if (audioController && audioController.recognition) {
+        if (audioController.isRecording) {
+          audioController.stopRecording();
+          btn.style.opacity = '0.5';
+        } else {
+          startCandidateListening();
+          btn.style.opacity = '1';
+        }
+      }
+    }
+
+    /* Real-Time Answer State Badges */
+    function updateInterviewState(state) {
+      const badge = document.getElementById('liveStateBadge');
+      if (!badge) return;
+
+      badge.className = 'state-pill';
+      if (state === 'listening') {
+        badge.classList.add('state-listening');
+        badge.innerHTML = '🎙️ Listening...';
+      } else if (state === 'candidate_speaking') {
+        badge.classList.add('state-speaking');
+        badge.innerHTML = '● Candidate speaking';
+      } else if (state === 'thinking') {
+        badge.classList.add('state-thinking');
+        badge.innerHTML = '🧠 AI is thinking...';
+      } else if (state === 'ai_speaking') {
+        badge.classList.add('state-ai-speaking');
+        badge.innerHTML = '🔊 AI is speaking...';
+      } else if (state === 'your_turn') {
+        badge.classList.add('state-your-turn');
+        badge.innerHTML = '👤 Your turn';
+      }
+    }
+
+    /* Load and Ask Next Main Question/Topic */
+    function loadAndAskNextTopic() {
+      const domain = document.getElementById('sessionDomain').value;
+      const diff = document.getElementById('sessionDiff').value;
+
+      turnIndex = 1;
+      document.getElementById('hudTurnNum').innerText = `1/2`;
+      document.getElementById('hudRoundNum').innerText = currentTopicIndex;
+      document.getElementById('scoreHud').style.display = 'none';
+      document.getElementById('candidateTranscriptSubtitles').innerText = "Waiting for question...";
+      document.getElementById('candidateWordCount').innerText = "Words: 0";
+      candidateVoiceText = '';
+      hasPromptedThinkingPause = false;
+      hasPromptedRepeatQuestion = false;
+
+      let url = `/api/get-question/?domain=${domain}&difficulty=${diff}`;
+      answeredIds.forEach(id => {
+        url += `&exclude_ids[]=${id}`;
+      });
+
+      updateInterviewState('thinking');
+
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'success') {
+            currentQuestion = data.question;
+            answeredIds.push(currentQuestion.id);
+
+            // Display question prompt
+            document.getElementById('interviewerPromptText').innerText = `"${currentQuestion.question_text}"`;
+            document.getElementById('aiTile').classList.add('ai-speaking');
+            updateInterviewState('ai_speaking');
+
+            // Bot speaks baseline question aloud
+            audioController.speak(currentQuestion.question_text, () => {
+              onInterviewerFinishedSpeaking();
+            });
+
+            startRoundTimer();
+          } else {
+            answeredIds = [];
+            loadAndAskNextTopic();
+          }
+        })
+        .catch(err => {
+          console.error("Error loading question:", err);
+        });
+    }
+
+    function replayCurrentQuestionSpeech() {
+      if (currentQuestion && audioController) {
+        if (audioController.isRecording) audioController.stopRecording();
+        document.getElementById('aiTile').classList.add('ai-speaking');
+        updateInterviewState('ai_speaking');
+        audioController.speak(currentQuestion.question_text, () => {
+          onInterviewerFinishedSpeaking();
+        });
+      }
+    }
+
+    /* AI Finished Speaking -> Transition to Candidate Listening */
+    function onInterviewerFinishedSpeaking() {
+      document.getElementById('aiTile').classList.remove('ai-speaking');
+      updateInterviewState('your_turn');
+
+      setTimeout(() => {
+        startCandidateListening();
+      }, 400);
+    }
+
+    /* Start Speech Recognition for Candidate */
+    function startCandidateListening() {
+      const candidateTile = document.getElementById('candidateTile');
+      const micBadge = document.getElementById('candidateMicBadge');
+      const subtitles = document.getElementById('candidateTranscriptSubtitles');
+
+      candidateTile.classList.add('candidate-speaking');
+      micBadge.innerText = "🎙️ Mic Active — Speak Your Answer";
+      micBadge.style.color = "#10b981";
+      updateInterviewState('listening');
+
+      if (!audioController.recognition) {
+        subtitles.innerText = "SpeechRecognition is unavailable in this browser. Please use Chrome/Edge.";
+        return;
+      }
+
+      resetThinkingPauseSupervisor();
+
+      // Configure Speech Recognition
+      audioController.recognition.onresult = (event) => {
+        // Candidate is actively speaking!
+        resetThinkingPauseTimer();
+        updateInterviewState('candidate_speaking');
+
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          candidateVoiceText += ' ' + finalTranscript;
+        }
+
+        const displayText = (candidateVoiceText + ' ' + interimTranscript).trim();
+        subtitles.innerText = `"${displayText}"`;
+
+        const words = displayText.split(/\s+/).filter(Boolean).length;
+        document.getElementById('candidateWordCount').innerText = `Words: ${words}`;
+
+        // Real-Time Interruption & Active Listening Check (every ~2 seconds)
+        triggerRealtimeInterruptionCheck(displayText, words);
+      };
+
+      try {
+        audioController.recognition.start();
+      } catch (e) {}
+
+      // Start Thinking Pause Supervisor (waits without interrupting normal thought)
+      startThinkingPauseSupervisor();
+    }
+
+    /* Real-Time Interruption Check While Candidate Speaks */
+    function triggerRealtimeInterruptionCheck(text, wordCount) {
+      if (wordCount < 8) return;
+      if (realtimeCheckTimer) return; // Throttle to every 2.5 seconds
+
+      realtimeCheckTimer = setTimeout(() => {
+        realtimeCheckTimer = null;
+        if (!currentQuestion) return;
+
+        fetch('/api/live/realtime-check/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question_id: currentQuestion.id,
+            partial_transcript: text,
+            word_count: wordCount,
+            turn_index: turnIndex,
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'success' && data.should_interrupt) {
+            console.log("AI Interviewer intervening naturally:", data.reason);
+            handleInterviewerInterruption(data.spoken_interruption);
+          }
+        })
+        .catch(() => {});
+      }, 2200);
+    }
+
+    /* AI Natural Interruption Handler */
+    function handleInterviewerInterruption(interruptionSpeech) {
+      // 1. Stop candidate recording immediately
+      if (audioController) audioController.stopRecording();
+      document.getElementById('candidateTile').classList.remove('candidate-speaking');
+      document.getElementById('candidateMicBadge').innerText = "Interviewer speaking...";
+
+      // 2. AI speaks interruption dialogue
+      document.getElementById('aiTile').classList.add('ai-speaking');
+      document.getElementById('interviewerPromptText').innerText = `"${interruptionSpeech}"`;
+      updateInterviewState('ai_speaking');
+
+      audioController.speak(interruptionSpeech, () => {
+        // Transition back to candidate's turn
+        candidateVoiceText = ''; // Clear rambling transcript for fresh start
+        document.getElementById('candidateTranscriptSubtitles').innerText = "Listening for your direct answer...";
+        document.getElementById('candidateWordCount').innerText = "Words: 0";
+        onInterviewerFinishedSpeaking();
+      });
+    }
+
+    /* Thinking Pause Supervisor (Item 8 in user request) */
+    function startThinkingPauseSupervisor() {
+      clearInterval(thinkingPauseInterval);
+      silenceSeconds = 0;
+
+      thinkingPauseInterval = setInterval(() => {
+        silenceSeconds++;
+
+        // 0-6 seconds: Complete quiet, patient waiting (thinking time)
+        // 7-10 seconds: "Take your time."
+        if (silenceSeconds >= 8 && !hasPromptedThinkingPause && candidateVoiceText.trim().length === 0) {
+          hasPromptedThinkingPause = true;
+          console.log("Candidate paused to think. Providing subtle reassurance.");
+          if (audioController) {
+            audioController.speak("Take your time.", () => {
+              // resume listening seamlessly
+              updateInterviewState('listening');
+            });
+          }
+        }
+
+        // 14-16 seconds: "Would you like me to repeat the question?"
+        if (silenceSeconds >= 16 && !hasPromptedRepeatQuestion && candidateVoiceText.trim().length === 0) {
+          hasPromptedRepeatQuestion = true;
+          console.log("Extended pause. Offering question repetition.");
+          if (audioController) {
+            audioController.speak("Would you like me to repeat the question?", () => {
+              updateInterviewState('listening');
+            });
+          }
+        }
+      }, 1000);
+    }
+
+    function resetThinkingPauseTimer() {
+      silenceSeconds = 0;
+    }
+
+    function resetThinkingPauseSupervisor() {
+      clearInterval(thinkingPauseInterval);
+      silenceSeconds = 0;
+      hasPromptedThinkingPause = false;
+      hasPromptedRepeatQuestion = false;
+    }
+
+    /* Candidate Finishes Spoken Turn */
+    function finishCandidateTurn() {
+      resetThinkingPauseSupervisor();
+      if (realtimeCheckTimer) clearTimeout(realtimeCheckTimer);
+
+      if (audioController) {
+        audioController.stopRecording();
+      }
+
+      document.getElementById('candidateTile').classList.remove('candidate-speaking');
+      const micBadge = document.getElementById('candidateMicBadge');
+      micBadge.innerText = "🧠 AI processing response...";
+      micBadge.style.color = "#818cf8";
+      updateInterviewState('thinking');
+
+      const sessionId = document.getElementById('sessionId').value;
+      const spokenAnswer = (candidateVoiceText || "Candidate provided response.").trim();
+
+      // Submit Turn to Backend Conversational Evaluator
+      fetch('/api/live/turn-response/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question_id: currentQuestion.id,
+          candidate_answer: spokenAnswer,
+          session_id: sessionId,
+          turn_index: turnIndex,
+          conversation_history: conversationHistory,
+          duration_seconds: 120 - roundTimerSeconds,
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          handleTurnResponse(data);
+        } else {
+          advanceToNextTopic();
+        }
+      })
+      .catch(err => {
+        console.error("Error processing turn:", err);
+        advanceToNextTopic();
+      });
+    }
+
+    /* Handle AI Interviewer's Conversational Reaction */
+    function handleTurnResponse(data) {
+      const speech = data.interviewer_speech;
+      const action = data.action;
+      const scoreData = data.score_data;
+
+      // Update HUD
+      if (scoreData) {
+        document.getElementById('scoreHud').style.display = 'block';
+        document.getElementById('hudScore').innerText = scoreData.score;
+        document.getElementById('hudGrade').innerText = scoreData.grade;
+        document.getElementById('hudVerdict').innerText = data.verdict_label || scoreData.verdict;
+      }
+
+      // Record to history
+      conversationHistory.push({
+        turn: turnIndex,
+        candidate: candidateVoiceText,
+        ai: speech,
+        category: data.category
+      });
+
+      // AI speaks conversational response
+      document.getElementById('aiTile').classList.add('ai-speaking');
+      document.getElementById('interviewerPromptText').innerText = `"${speech}"`;
+      updateInterviewState('ai_speaking');
+
+      audioController.speak(speech, () => {
+        document.getElementById('aiTile').classList.remove('ai-speaking');
+
+        // Check whether to continue dialogue or advance topic
+        if (action === 'continue_dialogue' && turnIndex === 1) {
+          // Turn 2: Candidate answers follow-up!
+          turnIndex = 2;
+          document.getElementById('hudTurnNum').innerText = `2/2`;
+          candidateVoiceText = '';
+          document.getElementById('candidateTranscriptSubtitles').innerText = "Speak your response to the follow-up...";
+          document.getElementById('candidateWordCount').innerText = "Words: 0";
+          
+          updateInterviewState('your_turn');
+          setTimeout(() => {
+            startCandidateListening();
+          }, 500);
+        } else {
+          // Topic completed! Advance to next topic
+          advanceToNextTopic();
+        }
+      });
+    }
+
+    /* Advance to Next Main Topic or Complete Interview */
+    function advanceToNextTopic() {
+      if (currentTopicIndex < totalRounds) {
+        currentTopicIndex++;
+        document.getElementById('hudRoundNum').innerText = currentTopicIndex;
+        loadAndAskNextTopic();
+      } else {
+        // Complete Interview!
+        const sessionId = document.getElementById('sessionId').value;
+        updateInterviewState('thinking');
+        document.getElementById('interviewerPromptText').innerText = "That concludes our technical interview. Preparing your official placement evaluation now...";
+
+        audioController.speak("That concludes our placement interview. Here is your official hiring evaluation.", () => {
+          window.location.href = `/interview/report/${sessionId}/`;
+        });
+
+        setTimeout(() => {
+          window.location.href = `/interview/report/${sessionId}/`;
+        }, 4000);
+      }
+    }
+
+    /* Round Countdown Timer */
+    function startRoundTimer() {
+      clearInterval(roundTimerInterval);
+      roundTimerSeconds = 120;
+      updateTimerDisplay();
+
+      roundTimerInterval = setInterval(() => {
+        roundTimerSeconds--;
+        updateTimerDisplay();
+
+        if (roundTimerSeconds <= 0) {
+          clearInterval(roundTimerInterval);
+          finishCandidateTurn();
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const display = document.getElementById('callTimer');
+      const mins = String(Math.floor(roundTimerSeconds / 60)).padStart(2, '0');
+      const secs = String(roundTimerSeconds % 60).padStart(2, '0');
+      if (display) display.innerText = `${mins}:${secs}`;
+    }
+
+    /* End Call Early */
+    function endInterviewCall() {
+      if (confirm("End technical interview call and generate evaluation report?")) {
+        const sessionId = document.getElementById('sessionId').value;
+        window.location.href = `/interview/report/${sessionId}/`;
+      }
+    }
+
+    // Spacebar shortcut to conclude turn
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !e.target.matches('input, textarea')) {
+        e.preventDefault();
+        finishCandidateTurn();
+      }
+    });
+  </script>
+</body>
+</html>

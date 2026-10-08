@@ -1,0 +1,357 @@
+{% extends 'interviews/base.html' %}
+{% load static %}
+
+{% block title %}Placement Readiness Scorecard - {{ session.candidate_name }}{% endblock %}
+
+{% block content %}
+<div style="display:flex; flex-direction:column; gap:2rem;">
+
+  <!-- Executive Header & Action Buttons -->
+  <div class="card" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1.25rem; border-top:5px solid #4f46e5;">
+    <div>
+      <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.35rem;">
+        <span class="badge" style="background:#e0e7ff; color:#4338ca; font-weight:800;">OFFICIAL PLACEMENT SCORECARD</span>
+        <span style="font-size:0.85rem; color:#64748b;">Session ID: {{ session.id|stringformat:".8s" }}...</span>
+      </div>
+      <h1 style="font-size:2rem; font-weight:800; color:#0f172a; margin-bottom:0.25rem;">
+        Candidate: {{ session.candidate_name }}
+      </h1>
+      <p style="color:#64748b; font-size:0.95rem;">
+        Domain Track: <strong>{{ domain_display }}</strong> &bull; Completed on {{ session.created_at|date:"M d, Y - h:i A" }}
+      </p>
+    </div>
+
+    <div class="no-print" style="display:flex; gap:0.75rem;">
+      <button onclick="window.print()" class="btn btn-secondary">
+        🖨️ Print / Save PDF
+      </button>
+      <a href="{% url 'interviews:mock_interview_room' %}?domain={{ session.domain }}&difficulty={{ session.difficulty }}" class="btn btn-primary">
+        🚀 Retake Mock Interview
+      </a>
+    </div>
+  </div>
+
+  <!-- Hiring Verdict & Skills Breakdown Grid -->
+  <div style="display:grid; grid-template-columns: 320px 1fr; gap:1.75rem; align-items:stretch;">
+    
+    <!-- Left: Score Gauge & Decision Banner -->
+    <div class="card" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:2rem 1.5rem; background:linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);">
+      
+      <!-- Big Score Circle -->
+      <div class="score-circle" style="width:140px; height:140px; border-width:8px; border-color: {% if session.overall_score >= 80 %}#10b981{% elif session.overall_score >= 65 %}#4f46e5{% elif session.overall_score >= 50 %}#f59e0b{% else %}#ef4444{% endif %};">
+        <div class="score-number" style="font-size:2.8rem; color: {% if session.overall_score >= 80 %}#10b981{% elif session.overall_score >= 65 %}#4f46e5{% elif session.overall_score >= 50 %}#f59e0b{% else %}#ef4444{% endif %};">
+          {{ session.overall_score }}
+        </div>
+        <div class="score-max">TOTAL SCORE / 100</div>
+      </div>
+
+      <div style="margin-top:1.5rem; width:100%;">
+        <div style="font-size:0.85rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.4rem;">
+          Recruiter Verdict
+        </div>
+        <div class="badge" style="font-size:1rem; padding:0.5rem 1rem; border-radius:10px; width:100%; justify-content:center;
+          background:{% if 'Strong Hire' in session.verdict or 'Hire' in session.verdict %}#dcfce7{% elif 'Borderline' in session.verdict %}#fef3c7{% else %}#fee2e2{% endif %};
+          color:{% if 'Strong Hire' in session.verdict or 'Hire' in session.verdict %}#15803d{% elif 'Borderline' in session.verdict %}#b45309{% else %}#b91c1c{% endif %};
+          border:1px solid {% if 'Strong Hire' in session.verdict or 'Hire' in session.verdict %}#bbf7d0{% elif 'Borderline' in session.verdict %}#fde68a{% else %}#fecaca{% endif %};">
+          {{ session.verdict }}
+        </div>
+      </div>
+
+      <div style="font-size:0.85rem; color:#64748b; margin-top:1.25rem; line-height:1.5;">
+        {% if session.overall_score >= 80 %}
+          Candidate demonstrates strong technical fluency, structured articulation, and comprehensive concept mastery suitable for immediate campus placement offers.
+        {% elif session.overall_score >= 65 %}
+          Candidate possesses solid foundational competence. Recommend minor polish on trade-off explanations and edge cases.
+        {% else %}
+          Candidate requires further preparation in core domain terminology, structural frameworks (STAR/Big-O), and answer elaboration.
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Right: 4-Pillar Radar/Bar Chart & Metrics -->
+    <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h3 style="font-size:1.2rem; font-weight:800; color:#1e1b4b;">
+          Candidate Skill Profile Radar
+        </h3>
+        <span style="font-size:0.8rem; color:#64748b;">Evaluated via Multi-Factor NLP</span>
+      </div>
+
+      <!-- Chart Container -->
+      <div style="position:relative; height:240px; width:100%;">
+        <canvas id="skillsChart"></canvas>
+      </div>
+
+      <!-- Metric Pills Row -->
+      <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:0.75rem; margin-top:1.25rem; text-align:center;">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:0.6rem; border-radius:8px;">
+          <div style="font-size:0.75rem; color:#64748b; font-weight:600;">Technical Match</div>
+          <div style="font-size:1.15rem; font-weight:800; color:#4f46e5;">{{ session.technical_score }}%</div>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:0.6rem; border-radius:8px;">
+          <div style="font-size:0.75rem; color:#64748b; font-weight:600;">Concept Spotting</div>
+          <div style="font-size:1.15rem; font-weight:800; color:#06b6d4;">{{ session.concept_score }}%</div>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:0.6rem; border-radius:8px;">
+          <div style="font-size:0.75rem; color:#64748b; font-weight:600;">Depth & Substance</div>
+          <div style="font-size:1.15rem; font-weight:800; color:#10b981;">{{ session.depth_score }}%</div>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:0.6rem; border-radius:8px;">
+          <div style="font-size:0.75rem; color:#64748b; font-weight:600;">Structure / STAR</div>
+          <div style="font-size:1.15rem; font-weight:800; color:#f59e0b;">{{ session.communication_score }}%</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Camera Presence & Interview Demeanor Notes (Item 17) -->
+  <div class="card" style="border-left:5px solid #06b6d4; background:#f8fafc; padding:1.25rem 1.5rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; flex-wrap:wrap; gap:0.5rem;">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span style="font-size:1.2rem;">👁️</span>
+        <h3 style="font-size:1.1rem; font-weight:800; color:#1e293b;">
+          Camera Presence &amp; Behavioral Assessment
+        </h3>
+      </div>
+      <span class="badge" style="background:{% if session.presence_log %}#fef3c7{% else %}#dcfce7{% endif %}; color:{% if session.presence_log %}#b45309{% else %}#15803d{% endif %};">
+        {% if session.presence_log %}{{ session.presence_log|length }} Attention Signals Recorded{% else %}✓ Consistent Focus Maintained{% endif %}
+      </span>
+    </div>
+    <p style="color:#334155; font-size:0.95rem; line-height:1.6;">
+      {{ session.behavioral_notes|default:"Candidate demonstrated steady eye contact, maintained professional posture throughout the interview, and remained actively focused on the panel." }}
+    </p>
+  </div>
+
+  <!-- Round-by-Round Detailed Breakdown -->
+  <div>
+    <h2 style="font-size:1.5rem; font-weight:800; color:#0f172a; margin-bottom:1.25rem;">
+      Round-by-Round Interview Transcripts & Evaluation
+    </h2>
+
+    <div style="display:flex; flex-direction:column; gap:1.25rem;">
+      {% for sub in submissions %}
+        <div class="card" style="border-left:5px solid {% if sub.score >= 80 %}#10b981{% elif sub.score >= 65 %}#4f46e5{% elif sub.score >= 50 %}#f59e0b{% else %}#ef4444{% endif %}; padding:1.5rem;">
+          
+          <!-- Round Header -->
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+            <div>
+              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem;">
+                <span class="badge" style="background:#0f172a; color:#fff;">Round {{ forloop.counter }}</span>
+                <span class="badge badge-domain">{{ sub.question.get_domain_display }}</span>
+                <span class="badge badge-{{ sub.question.difficulty }}">{{ sub.question.get_difficulty_display }}</span>
+                <span class="badge" style="background:#f1f5f9; color:#475569;">{{ sub.question.category }}</span>
+              </div>
+              <h3 style="font-size:1.25rem; font-weight:800; color:#1e1b4b;">
+                {{ sub.question.title }}
+              </h3>
+            </div>
+
+            <!-- Score & Grade Badge -->
+            <div style="display:flex; align-items:center; gap:0.6rem;">
+              <span class="badge" style="background:#ede9fe; color:#6d28d9; font-size:0.95rem; font-weight:800; padding:0.35rem 0.75rem;">
+                Grade: {{ sub.grade }}
+              </span>
+              <div style="font-size:1.4rem; font-weight:800; color:#4f46e5;">
+                {{ sub.score }} <span style="font-size:0.8rem; color:#64748b;">/ 100</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Question Prompt Box -->
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1rem; margin-bottom:1rem; font-size:0.95rem; color:#334155;">
+            <strong>Interviewer Prompt:</strong> {{ sub.question.question_text }}
+          </div>
+
+          <!-- Conversational Dialogue Exchanges -->
+          {% if sub.turn_history %}
+            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:1.25rem; margin-bottom:1rem;">
+              <div style="font-size:0.8rem; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.75rem;">
+                💬 Live Conversational Exchanges:
+              </div>
+              <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                {% for t in sub.turn_history %}
+                  <!-- Candidate Spoken Turn -->
+                  <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:0.85rem 1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+                      <span style="font-size:0.75rem; font-weight:700; color:#4f46e5;">👤 Candidate (Turn {{ t.turn }}):</span>
+                      <span class="badge" style="font-size:0.68rem; background:#f1f5f9; color:#475569;">{{ t.category }}</span>
+                    </div>
+                    <div style="color:#0f172a; font-size:0.92rem; font-style:italic;">
+                      "{{ t.candidate_answer }}"
+                    </div>
+                  </div>
+
+                  <!-- AI Interviewer Reaction -->
+                  {% if t.interviewer_speech %}
+                    <div style="background:#eef2ff; border:1px solid #c7d2fe; border-radius:10px; padding:0.85rem 1rem; margin-left:1rem;">
+                      <div style="font-size:0.75rem; font-weight:700; color:#3730a3; margin-bottom:0.25rem;">
+                        🤖 AI Panelist Reaction / Follow-Up:
+                      </div>
+                      <div style="color:#1e1b4b; font-size:0.92rem; font-weight:600;">
+                        "{{ t.interviewer_speech }}"
+                      </div>
+                    </div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+          {% else %}
+            <!-- Candidate Answer Box Fallback -->
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:1rem; margin-bottom:1rem;">
+              <div style="font-size:0.8rem; font-weight:700; color:#475569; margin-bottom:0.35rem; display:flex; justify-content:space-between;">
+                <span>Candidate Answer Transcript (Duration: {{ sub.duration_seconds }}s):</span>
+                <span>Method: {{ sub.answer_method|title }}</span>
+              </div>
+              <p style="color:#0f172a; font-size:0.95rem; line-height:1.6; font-style:italic;">
+                "{{ sub.user_answer }}"
+              </p>
+            </div>
+          {% endif %}
+
+          <!-- Concepts Covered vs Missed -->
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:0.85rem; border-radius:8px;">
+              <div style="font-size:0.8rem; font-weight:700; color:#166534; margin-bottom:0.35rem;">Concepts Covered:</div>
+              {% if sub.feedback_data.covered_concepts %}
+                {% for c in sub.feedback_data.covered_concepts %}
+                  <span class="concept-pill covered" style="font-size:0.75rem; padding:0.2rem 0.5rem;">✓ {{ c }}</span>
+                {% endfor %}
+              {% else %}
+                <span style="font-size:0.8rem; color:#64748b;">None spotted</span>
+              {% endif %}
+            </div>
+
+            <div style="background:#fef2f2; border:1px solid #fecaca; padding:0.85rem; border-radius:8px;">
+              <div style="font-size:0.8rem; font-weight:700; color:#991b1b; margin-bottom:0.35rem;">Concepts Missed:</div>
+              {% if sub.feedback_data.missed_concepts %}
+                {% for c in sub.feedback_data.missed_concepts %}
+                  <span class="concept-pill missed" style="font-size:0.75rem; padding:0.2rem 0.5rem;">✕ {{ c }}</span>
+                {% endfor %}
+              {% else %}
+                <span style="font-size:0.8rem; color:#166534; font-weight:700;">All covered!</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Recruiter Strengths & Improvement Notes -->
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem; font-size:0.88rem;">
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:0.85rem; border-radius:8px;">
+              <strong style="color:#1e293b;">Interviewer Strengths:</strong>
+              <ul style="padding-left:1.2rem; margin-top:0.35rem; color:#475569;">
+                {% for s in sub.feedback_data.strengths %}
+                  <li>{{ s }}</li>
+                {% empty %}
+                  <li>Participated and answered within time.</li>
+                {% endfor %}
+              </ul>
+            </div>
+
+            <div style="background:#fffbeb; border:1px solid #fde68a; padding:0.85rem; border-radius:8px;">
+              <strong style="color:#92400e;">Actionable Advice:</strong>
+              <ul style="padding-left:1.2rem; margin-top:0.35rem; color:#b45309;">
+                {% for t in sub.feedback_data.improvement_tips %}
+                  <li>{{ t }}</li>
+                {% empty %}
+                  <li>Keep practicing edge cases.</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+
+          <!-- Model Answer Accordion -->
+          <details style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:0.65rem 1rem;">
+            <summary style="font-weight:700; font-size:0.88rem; color:#334155; cursor:pointer;">
+              🏆 View Gold-Standard Model Answer For This Question
+            </summary>
+            <p style="color:#1e293b; font-size:0.9rem; line-height:1.6; margin-top:0.6rem;">
+              {{ sub.question.model_answer }}
+            </p>
+          </details>
+
+        </div>
+      {% empty %}
+        <div class="card" style="text-align:center; padding:3rem; color:#64748b;">
+          No round submissions recorded for this session.
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Bottom CTA -->
+  <div class="card no-print" style="text-align:center; padding:2rem; background:linear-gradient(135deg, #1e1b4b, #312e81); color:#fff;">
+    <h3 style="font-size:1.4rem; font-weight:800; margin-bottom:0.5rem;">
+      Ready to Practice Another Placement Domain?
+    </h3>
+    <p style="color:#cbd5e1; font-size:0.95rem; margin-bottom:1.25rem;">
+      Practice across Web Dev, DSA, Data Science, and HR behavioral tracks to ensure total placement readiness.
+    </p>
+    <div style="display:flex; justify-content:center; gap:1rem;">
+      <a href="{% url 'interviews:landing' %}" class="btn" style="background:#fff; color:#312e81; font-weight:800;">
+        Back to Domains
+      </a>
+      <a href="{% url 'interviews:question_bank' %}" class="btn" style="background:rgba(255,255,255,0.15); color:#fff;">
+        Browse Question Bank Cheat Sheet
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const rawData = {{ radar_data_json|safe }};
+    const ctx = document.getElementById('skillsChart');
+
+    if (ctx && rawData) {
+      new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: rawData.labels,
+          datasets: [{
+            label: 'Candidate Competency (%)',
+            data: rawData.values,
+            fill: true,
+            backgroundColor: 'rgba(79, 70, 229, 0.25)',
+            borderColor: '#4f46e5',
+            pointBackgroundColor: '#4f46e5',
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: '#4f46e5',
+            borderWidth: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              suggestedMin: 0,
+              suggestedMax: 100,
+              ticks: {
+                stepSize: 20,
+                display: false,
+              },
+              pointLabels: {
+                font: {
+                  size: 11,
+                  weight: 'bold',
+                },
+                color: '#334155',
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false,
+            }
+          }
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

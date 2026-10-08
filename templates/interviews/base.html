@@ -1,0 +1,68 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}AI Placement Interview Practice Bot{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  <!-- Chart.js for placement scorecard analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="{% url 'interviews:landing' %}" class="brand-logo">
+        <div class="brand-icon">🎙️</div>
+        <div>
+          <span>PlacementBot</span>
+          <span class="brand-badge">AI Interviewer</span>
+        </div>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="{% url 'interviews:landing' %}" class="nav-link">Home</a></li>
+        <li>
+          <a href="{% url 'interviews:live_video_interview' %}" class="nav-link nav-btn-highlight" style="background:linear-gradient(135deg, #10b981, #059669); box-shadow:0 4px 15px rgba(16,185,129,0.35);">
+            📹 Live Video Interview Call
+          </a>
+        </li>
+        <li><a href="{% url 'interviews:practice_room' %}" class="nav-link">Practice Drill</a></li>
+        <li><a href="{% url 'interviews:question_bank' %}" class="nav-link">Question Bank</a></li>
+        <li><a href="{% url 'interviews:session_history' %}" class="nav-link">Scorecards</a></li>
+        <li>
+          <a href="{% url 'interviews:live_video_interview' %}?domain=project_defense" class="badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; text-decoration:none; padding:0.4rem 0.8rem; font-weight:800;" title="Live Panel Demo: Interview this project via Webcam!">
+            🔥 Project Defense
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Main Content Wrapper -->
+  <main class="main-wrapper">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Global Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div>
+        <strong>AI Placement Interview Practice Bot</strong> &copy; 2026. Empowering college students with real-time AI placement mock interviews.
+      </div>
+      <div class="footer-badges">
+        <span class="footer-badge">Python Django 6.1</span>
+        <span class="footer-badge">Scikit-Learn NLP</span>
+        <span class="footer-badge">Web Speech API</span>
+        <span class="footer-badge" style="background:#dcfce7; color:#166534;">100% Free / Zero Paid APIs</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="{% static 'js/speech_interviewer.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

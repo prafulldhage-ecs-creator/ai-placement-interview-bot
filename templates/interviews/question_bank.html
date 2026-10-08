@@ -1,0 +1,127 @@
+{% extends 'interviews/base.html' %}
+{% load static %}
+
+{% block title %}Placement Question Bank & Cheat Sheet - AI Placement Bot{% endblock %}
+
+{% block content %}
+<div style="display:flex; flex-direction:column; gap:2rem;">
+
+  <!-- Header & Search Filter Card -->
+  <div class="card" style="padding:1.75rem;">
+    <div style="margin-bottom:1.25rem;">
+      <h1 style="font-size:1.8rem; font-weight:800; color:#0f172a; margin-bottom:0.25rem;">
+        Placement Interview Question Bank & Cheat Sheet
+      </h1>
+      <p style="color:#64748b; font-size:0.95rem;">
+        Browse curated placement interview questions, required technical keywords, and gold-standard model answers for last-minute revision.
+      </p>
+    </div>
+
+    <!-- Filter Form -->
+    <form method="GET" action="{% url 'interviews:question_bank' %}" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:center;">
+      
+      <!-- Search Input -->
+      <div style="flex:1; min-width:260px;">
+        <input type="text" name="q" value="{{ search_query }}" placeholder="Search questions, keywords (e.g. Virtual DOM, Knapsack, STAR, Overfitting)..." style="width:100%; padding:0.65rem 1rem; border-radius:8px; border:1px solid #cbd5e1; font-size:0.95rem; outline:none;">
+      </div>
+
+      <!-- Domain Filter -->
+      <div>
+        <select name="domain" style="padding:0.65rem 1rem; border-radius:8px; border:1px solid #cbd5e1; font-weight:600; font-size:0.9rem; background:#fff; outline:none;">
+          <option value="all" {% if selected_domain == 'all' %}selected{% endif %}>All Domains</option>
+          {% for val, label in domains %}
+            <option value="{{ val }}" {% if selected_domain == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Difficulty Filter -->
+      <div>
+        <select name="difficulty" style="padding:0.65rem 1rem; border-radius:8px; border:1px solid #cbd5e1; font-weight:600; font-size:0.9rem; background:#fff; outline:none;">
+          <option value="all" {% if selected_difficulty == 'all' %}selected{% endif %}>All Difficulties</option>
+          {% for val, label in difficulties %}
+            <option value="{{ val }}" {% if selected_difficulty == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="padding:0.65rem 1.4rem;">
+        🔍 Filter
+      </button>
+
+      {% if search_query or selected_domain != 'all' or selected_difficulty != 'all' %}
+        <a href="{% url 'interviews:question_bank' %}" class="btn btn-secondary" style="padding:0.65rem 1rem;">
+          Clear Filters
+        </a>
+      {% endif %}
+
+    </form>
+  </div>
+
+  <!-- Results Count -->
+  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.92rem; color:#64748b;">
+    <span>Showing <strong>{{ total_results }}</strong> high-yield placement questions</span>
+    <span style="font-size:0.85rem;">Click question to practice directly in the drill room</span>
+  </div>
+
+  <!-- Questions List Accordion -->
+  <div style="display:flex; flex-direction:column; gap:1.25rem;">
+    {% for q in questions %}
+      <div class="card" style="padding:1.5rem; transition:transform 0.15s ease;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.75rem; margin-bottom:0.75rem;">
+          <div>
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem;">
+              <span class="badge badge-domain">{{ q.get_domain_display }}</span>
+              <span class="badge badge-{{ q.difficulty }}">{{ q.get_difficulty_display }}</span>
+              <span class="badge" style="background:#f1f5f9; color:#475569;">{{ q.category }}</span>
+            </div>
+            <h3 style="font-size:1.25rem; font-weight:800; color:#1e1b4b;">
+              {{ q.title }}
+            </h3>
+          </div>
+
+          <a href="{% url 'interviews:practice_room' %}?domain={{ q.domain }}&difficulty={{ q.difficulty }}" class="btn btn-secondary" style="padding:0.4rem 0.9rem; font-size:0.82rem;">
+            Practice This Question &rarr;
+          </a>
+        </div>
+
+        <p style="color:#334155; font-size:0.96rem; line-height:1.6; margin-bottom:1rem; background:#f8fafc; padding:1rem; border-radius:10px; border:1px solid #e2e8f0;">
+          {{ q.question_text }}
+        </p>
+
+        <!-- Key Concepts Spotted by AI -->
+        <div style="margin-bottom:0.75rem;">
+          <span style="font-size:0.78rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.04em;">Expected Concepts:</span>
+          <div style="display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.35rem;">
+            {% for c in q.get_key_concepts_list %}
+              <span class="concept-pill" style="background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe; font-size:0.75rem; padding:0.2rem 0.6rem;">
+                {{ c }}
+              </span>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Collapsible Model Answer -->
+        <details style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:0.65rem 1rem; margin-top:0.75rem;">
+          <summary style="font-weight:700; font-size:0.88rem; color:#1e293b; cursor:pointer;">
+            🏆 Reveal Recruiter Model Answer
+          </summary>
+          <div style="color:#334155; font-size:0.92rem; line-height:1.65; margin-top:0.6rem; padding-top:0.6rem; border-top:1px solid #e2e8f0;">
+            {{ q.model_answer }}
+          </div>
+        </details>
+
+      </div>
+    {% empty %}
+      <div class="card" style="text-align:center; padding:3rem 1rem; color:#64748b;">
+        <h3>No questions matched your search criteria.</h3>
+        <p style="margin-top:0.5rem;">Try clearing filters or search terms.</p>
+        <a href="{% url 'interviews:question_bank' %}" class="btn btn-primary" style="margin-top:1rem;">
+          View All Questions
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
